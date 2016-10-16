@@ -1,0 +1,39 @@
+- This is a websocket only project.
+- All client requests should be routed through an API Gateway facade.
+- API Gateway should expose websocket service via socket.io library.
+- For auto-discovery and fault-tolerance among microservices cote.js library is recommended.
+- There will be single mongodb cluster. However system is designed such that each microservice accesses only dedicated collections.
+This enables these microservices to be deployed on different servers with completely different databases.
+The only thing needed would be a TCP connection between microservices.
+- Mongoose should be used as ODM.
+- There will be 4 microservices:
+    - UserService would access User collection and exposes interfaces for listing and updating users.
+    - BookingService would handle booking business logic by accessing Car and Booking collections.
+    - GatewayService would act as a facade for client requests and proxy them to internal services via socket based message requesters.
+    - RecoveryService is an integrity task which would run in intervals to correct transactional anomalies such as
+    bookings stuck in PENDING or APPLIED states in case of an hardware problem or software anomaly. It should constantly check
+    lastModified dates of incomplete transactions and correct the systems integrity if the transaction is stuck for a given amount of time.
+    This time amount should be parametric and experimental, 5 minutes could be a good starting point.
+- The most tricky part is the booking transaction flow. As the system is designed as distributed, there can be no transactional locking
+between different microservices each handling a different collection. We will be following the multi-document update industry standard: Two Phase Commits.
+See: https://docs.mongodb.com/v3.2/tutorial/perform-two-phase-commits/
+With this method we will be abuse mongodb's document-level atomicity capabilities.
+    - Each transaction will begin as an initial state of booking record containing all necessary info for booking which are:
+        - User making the booking
+        - Car being booked
+        - Cost of booking
+    - The initial state won't affect anything, it is there just to make sure no one else could attempt to make that transaction.
+    - There should be a unique index to restrict the user to have only one outstanding transaction at a given time.
+    This will be achieved using partialFilterExpressions of mongodb. userId will be a unique index in the bookings collection
+    with a partialFilterExpression guaranteeing no other record can have less than COMMITTED and CANCELLED states (which are final states of transactions).
+    - After the state is set to pending, user balance is recalculated and active booking records would be inserted into car and user collections.
+    A field named pendingBookings are also present in Car and User collections. This is there to be used as a filtering condition during collection
+    updates, to make sure each mutating operation is applied once and only once. Document level locking guarantees this when
+    pendingBookings used as a filtering condition.
+    - After mutating operations are completed the booking state is transitioned to APPLIED, and after pendingBookings are cleared it is transitioned to COMMITTED.
+- User balance should also be guaranteed to be non-negative by strict validation rules applied into the collection.
+- In the case of a problem, the system is designed to always be in a consistent state, and all necessary information is kept in the booking collection.
+- A background service (RecoveryService) should constantly check bookings collection for transactions stuck in non-final states older than a given period of time.
+If such a transaction is found it should be CANCELLED if its state is lower than APPLIED. Otherwise, another transaction should be added nullifying the total
+amount of transaction. See https://docs.mongodb.com/v3.2/tutorial/perform-two-phase-commits/#recovering-from-failure-scenarios
+- Admin and User clients will also be backend applications. They will still make use of socket.io library to connect to the API gateway.
