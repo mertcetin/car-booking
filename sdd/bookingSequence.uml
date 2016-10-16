@@ -1,0 +1,120 @@
+@startuml
+title Client Booking Sequence
+participant Client
+
+Client -> Gateway: listNearbyCars(location)
+activate Gateway #FFBBBB
+Gateway -> BookingService: listNearbyCars(location)
+activate BookingService #FFBBBB
+BookingService -> CarModel: query with $nearSphere
+activate CarModel
+CarModel --> BookingService: result
+deactivate CarModel
+BookingService --> Gateway: result
+Gateway --> Client: available cars
+deactivate BookingService
+deactivate Gateway
+
+
+Client -> Gateway: bookCar
+activate Gateway #FFBBBB
+Gateway -> BookingService: bookCar
+activate BookingService #FFBBBB
+
+BookingService -> UserService: getUser
+activate UserService #FFBBBB
+UserService -> UserModel: query
+activate UserModel
+UserModel --> UserService: <<User>>
+deactivate UserModel
+UserService --> BookingService: <<User>>
+deactivate UserService
+BookingService -> BookingService: checkFunds
+activate BookingService #DarkSalmon
+deactivate BookingService
+
+note over BookingService: Break if not enough funds
+
+BookingService -> BookingService: checkCarAvailability
+activate BookingService #DarkSalmon
+BookingService -> CarModel: query
+activate CarModel
+CarModel --> BookingService: <<Car>>
+deactivate CarModel
+note over BookingService: Break if car not available
+deactivate BookingService
+
+BookingService -> BookingModel: insert INITIAL booking with all necessarry transaction info
+activate BookingModel
+BookingModel --> BookingService: result
+deactivate BookingModel
+note over BookingService: Break if numInserted is zero\nThere is an outstanding transaction
+
+BookingService -> BookingModel: Modify transaction state to PENDING
+activate BookingModel
+BookingModel --> BookingService: result
+deactivate BookingModel
+note over BookingService: Break if numModified is zero\nTransaction is dropped or already applied
+
+BookingService -> UserService: processBooking
+activate UserService #FFBBBB
+note over UserService: Subtract cost from balance\nAdd active booking record\nAdd to pending bookings
+UserService -> UserModel: updateUser
+activate UserModel
+note over UserService: Add activeBooking == null and\npendingBookings != bookingId\nto where condition to make sure no other\nworker is handling this transaction\nand there is only one activeBooking per User
+UserModel --> UserService: result
+deactivate UserModel
+UserService --> BookingService: result
+deactivate UserService
+
+BookingService -> BookingService: processCarBooking
+activate BookingService #DarkSalmon
+note over BookingService: Add active booking record\nAdd to pending bookings
+BookingService -> CarModel: updateCar
+activate CarModel
+note over BookingService: Add activeBooking == null and\npendingBookings != bookingId\nto where condition to make sure no other\nworker is handling this transaction\nand there is only one activeBooking per Car
+CarModel --> BookingService: result
+deactivate CarModel
+deactivate BookingService
+
+BookingService -> BookingModel: Modify transaction state to APPLIED
+activate BookingModel
+BookingModel --> BookingService: result
+deactivate BookingModel
+note over BookingService: Break if numModified is zero\nTransaction is dropped or already applied
+
+BookingService -> UserService: completeBooking
+activate UserService #FFBBBB
+note over UserService: Remove pendingBookings
+UserService -> UserModel: updateUser
+activate UserModel
+note over UserService: Add pendingBookings == bookingId\nto where condition to make sure \nthis transaction is done only once
+UserModel --> UserService: result
+deactivate UserModel
+UserService --> BookingService: result
+deactivate UserService
+
+BookingService -> BookingService: completeCarBooking
+activate BookingService #DarkSalmon
+note over BookingService: Remove pendingBookings
+BookingService -> CarModel: updateCar
+activate CarModel
+note over BookingService: Add pendingBookings == bookingId\nto where condition to make sure \nthis transaction is done only once
+CarModel --> BookingService: result
+deactivate CarModel
+deactivate BookingService
+
+BookingService -> BookingModel: Modify transaction state to COMMITTED
+activate BookingModel
+BookingModel --> BookingService: result
+deactivate BookingModel
+note over BookingService: Break if numModified is zero\nTransaction is dropped or already applied
+
+BookingService --> Gateway: <<Booking Record>>
+deactivate BookingService
+[<-- BookingService: Broadcast booking via publisher
+Gateway --> Client: <<Booking Record>>
+deactivate Gateway
+
+
+@enduml
