@@ -1,0 +1,68 @@
+@startuml
+enum BookingStates {
+  INITIAL
+  PENDING
+  APPLIED
+  CANCELLING
+  CANCELLED
+  COMMITTED
+}
+
+class Car {
+    +id
+    +location
+    +activeBooking
+    +pendingBookings[]
+}
+
+class User {
+    +id
+    +name
+    +role
+    +balance
+    +activeBooking
+    +pendingBookings[]
+}
+
+class UserService {
+    +list(query)
+    +addFunds(userId, amount)
+    -processBooking(userId, bookingId)
+    -completeBooking(userId, bookingId)
+    -endBooking(userId, bookingId)
+}
+
+class Booking {
+    +id
+    +carId
+    +userId
+    +cost
+    +createdAt
+    +lastModifiedAt
+    +state
+}
+
+class BookingService {
+    +listNearbyCars(location)
+    +bookCar(bookingId, userId, carId)
+    +endBooking(bookingId, userId, carId)
+    +userBookingHistory(userId)
+    +carBookingHistory(carId)
+}
+
+BookingService .> UserService : communicates
+BookingService o--> Booking : manages
+BookingService o--> Car : manages
+UserService o--> User : manages
+
+User -* Booking : hasOne
+note "User can only have one active booking \nbut many older bookings" as N1
+User..N1
+N1..Booking
+User -> Booking :hasOneActiveBooking
+
+Booking *- Car :hasOne
+Car -> Booking :hasOneActiveBooking
+Booking--BookingStates
+
+@enduml
