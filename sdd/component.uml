@@ -1,0 +1,31 @@
+@startuml
+
+[API Gateway]--Socket: uses
+Socket-->[User Service]
+Socket-->[Booking Service]
+[Booking Service]-Socket2: uses
+Socket2->[User Service]
+[Booking Service] -> BC
+[Booking Service] -> CC
+[User Service] -> UC
+[Integrity Service] --> [Booking Service]
+[Integrity Service] --> [User Service]
+
+[Client]-->WS
+[Admin]-->WS
+WS--[API Gateway]: listens
+
+interface "Websocket" as WS
+interface "TCP Socket" as Socket
+interface "TCP Socket" as Socket2
+
+node "MongoDB" {
+  database "Users Collection" as UC {
+  }
+  database "Cars Collection" as CC {
+  }
+  database "Bookings Collection" as BC {
+  }
+}
+
+@enduml
