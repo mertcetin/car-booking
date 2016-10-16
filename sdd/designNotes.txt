@@ -34,6 +34,7 @@ With this method we will be abuse mongodb's document-level atomicity capabilitie
 - User balance should also be guaranteed to be non-negative by strict validation rules applied into the collection.
 - In the case of a problem, the system is designed to always be in a consistent state, and all necessary information is kept in the booking collection.
 - A background service (RecoveryService) should constantly check bookings collection for transactions stuck in non-final states older than a given period of time.
-If such a transaction is found it should be CANCELLED if its state is lower than APPLIED. Otherwise, another transaction should be added nullifying the total
-amount of transaction. See https://docs.mongodb.com/v3.2/tutorial/perform-two-phase-commits/#recovering-from-failure-scenarios
+If such a transaction is found it should be reapplied. If at anytime the transaction needs to be rolled-back, transactions lower than APPLIED state
+should be CANCELLED and for the already APPLIED transactions, another transaction should be added nullifying the total amount of transaction.
+See https://docs.mongodb.com/v3.2/tutorial/perform-two-phase-commits/#recovering-from-failure-scenarios
 - Admin and User clients will also be backend applications. They will still make use of socket.io library to connect to the API gateway.
