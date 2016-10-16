@@ -1,5 +1,6 @@
 const io = require('socket.io-client');
-const config = require('../config/' + process.env.NODE_ENV || 'development' + '.json');
+const env = process.env.NODE_ENV || 'development';
+const config = require('../config/' + env + '.json');
 const socket = io(config.gateway || 'http://localhost:5555');
 const prompt = require('prompt');
 
