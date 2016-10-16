@@ -1,0 +1,8 @@
+{
+  "mongodb": {
+    "host": "localhost",
+    "database": "car-booking"
+  },
+  "bookingCost": 30,
+  "gateway": "http://localhost:5555"
+}

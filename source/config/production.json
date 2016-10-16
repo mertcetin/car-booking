@@ -1,0 +1,8 @@
+{
+  "mongodb": {
+    "host": "",
+    "database": ""
+  },
+  "bookingCost": 30,
+  "gateway": ""
+}
