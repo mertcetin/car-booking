@@ -1,6 +1,8 @@
 const io = require('socket.io-client');
 const should = require('should');
-const socketURL = 'https://secure-river-76309.herokuapp.com';
+const env = process.env.NODE_ENV || 'development';
+const config = require('../config/' + env + '.json');
+const socketURL = config.gateway || 'http://localhost:5555';
 const models = require('../models');
 
 let options = {
